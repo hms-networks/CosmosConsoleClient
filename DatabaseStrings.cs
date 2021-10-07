@@ -1,4 +1,4 @@
-﻿namespace CosmosConsoleClient
+namespace CosmosConsoleClient
 {
     /// <summary>
     ///     Provides <see cref="string"/> consts for the <see cref="DatabaseCommand"/>.
