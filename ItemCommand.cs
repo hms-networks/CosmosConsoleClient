@@ -212,14 +212,14 @@ namespace CosmosConsoleClient
 
             if (result)
             {
-                Console.WriteLine(string.Format(Properties.Resources.LogMsgSuccess, statusCode));
+                Console.WriteLine(Properties.Resources.LogMsgSuccess, statusCode);
             }
             else
             {
-                Console.WriteLine(string.Format(Properties.Resources.LogMsgError, statusCode));
+                Console.WriteLine(Properties.Resources.LogMsgError, statusCode);
             }
 
-            Console.WriteLine(string.Format(Properties.Resources.LogMsgRequestCharge, requestCharge));
+            Console.WriteLine(Properties.Resources.LogMsgRequestCharge, requestCharge);
 
             return result;
         }
