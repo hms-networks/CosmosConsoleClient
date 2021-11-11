@@ -5,10 +5,6 @@
 A basic command line utility for interacting with an instance of Microsoft's
 `Cosmos DB`.
 
-The primary purpose for this utility is to provide a basic way for a .NET Core
-v3.1 or newer applications to utilize the `Microsoft.Azure.Cosmos` NuGet package
-which is based on .NET Core v2.1.
-
 > __NOTICE__: This utility is primarily focused on integration with other .NET
   applications. As such, there is minimal error handling provided by the utility
   meaning that exceptions that are thrown by the underlying Cosmos DB APIs will
@@ -17,7 +13,7 @@ which is based on .NET Core v2.1.
 ## Setup
 
 To utilize this application, the runtime (or SDK for compilation) of
-`.NET Core v2.1` must be installed. The runtime installer is available here:
+`.NET Core v3.1` must be installed. The runtime installer is available here:
 [.NET Installers](https://dotnet.microsoft.com/download/visual-studio-sdks)
 
 To initialize and build the release, run the following:
@@ -40,7 +36,7 @@ settings, but can be modified as needed to connect to any Cosmos DB instance.
 To run the command and retrieve the top level `help` information, run:
 
 ```cmd
-cd bin\Release\netcoreapp2.1
+cd bin\Release\netcoreapp3.1
 dotnet .\CosmosConsoleClient.dll --help
 ```
 
