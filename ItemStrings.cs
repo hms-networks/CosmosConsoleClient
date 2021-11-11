@@ -28,6 +28,18 @@ namespace CosmosConsoleClient
         public const string DeleteId = "--delete-id";
         public const string DeleteIdShort = "-d";
 
+        public const string ListAll = "--list-all";
+        public const string ListAllShort = "-l";
+
+        public const string StartTime = "--start-time";
+        public const string StartTimeShort = "--start";
+
+        public const string StopTime = "--stop-time";
+        public const string StopTimeShort = "--stop";
+
+        public const string SqlQuery = "--sql-query";
+        public const string SqlQueryShort = "-q";
+
         public const string Throughput = "--throughput";
         public const string ThroughputShort = "-t";
     }

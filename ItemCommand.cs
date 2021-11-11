@@ -6,6 +6,8 @@ using System.Configuration;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
 using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace CosmosConsoleClient
 {
@@ -26,6 +28,38 @@ namespace CosmosConsoleClient
                 description: Properties.Resources.ArgDescItemInitAll,
                 getDefaultValue: () => false,
                 arity: ArgumentArity.Zero)
+            {
+                IsRequired = false
+            },
+            new Option(
+                aliases: new string[] { ItemStrings.ListAll, ItemStrings.ListAllShort },
+                description: Properties.Resources.ArgDescItemListAll,
+                arity: ArgumentArity.Zero)
+            {
+                IsRequired = false
+            },
+            new Option(
+                aliases: new string[] { ItemStrings.StartTime, ItemStrings.StartTimeShort },
+                description: string.Format(Properties.Resources.ArgDescItemStartTime, ItemStrings.ListAll),
+                argumentType: typeof(long),
+                arity: ArgumentArity.ExactlyOne)
+            {
+                IsRequired = false
+            },
+            new Option(
+                aliases: new string[] { ItemStrings.StopTime, ItemStrings.StopTimeShort },
+                description: string.Format(Properties.Resources.ArgDescItemStopTime, ItemStrings.ListAll),
+                argumentType: typeof(long),
+                arity: ArgumentArity.ExactlyOne)
+            {
+                IsRequired = false
+            },
+            new Option(
+                aliases: new string[] { ItemStrings.SqlQuery, ItemStrings.SqlQueryShort },
+                description: Properties.Resources.ArgDescItemSqlQuery,
+                argumentType: typeof(string),
+                getDefaultValue: null,
+                arity: ArgumentArity.ExactlyOne)
             {
                 IsRequired = false
             },
@@ -109,7 +143,7 @@ namespace CosmosConsoleClient
         {
             if (Initialized) { return; }
 
-            Command.Handler = CommandHandler.Create<bool, string, string, string, string, string, string, int>(ExecuteCommandAsync);
+            Command.Handler = CommandHandler.Create<bool, bool, long?, long?, string, string, string, string, string, string, string, int>(ExecuteCommandAsync);
 
             Command.AddValidator(cmd => {
                 string result = null;
@@ -117,13 +151,33 @@ namespace CosmosConsoleClient
                     cmd.Children.Contains(ItemStrings.CreateItemShort);
                 bool deletePresent = cmd.Children.Contains(ItemStrings.DeleteId) ||
                     cmd.Children.Contains(ItemStrings.DeleteIdShort);
+                bool listAllPresent = cmd.Children.Contains(ItemStrings.ListAll) ||
+                    cmd.Children.Contains(ItemStrings.ListAllShort);
+                bool sqlQueryPresent = cmd.Children.Contains(ItemStrings.SqlQuery) ||
+                    cmd.Children.Contains(ItemStrings.SqlQueryShort);
 
-                if (!(createPresent ^ deletePresent))
+                if (!(createPresent || deletePresent || listAllPresent || sqlQueryPresent))
+                {
+                    result = string.Format(
+                        Properties.Resources.ValidateErrMsgItemOperationNotSpecified,
+                        ItemStrings.CreateItem,
+                        ItemStrings.DeleteId,
+                        ItemStrings.ListAll,
+                        ItemStrings.SqlQuery);
+                }
+                else if (!(createPresent ^ deletePresent) && !(listAllPresent || sqlQueryPresent))
                 {
                     result = string.Format(
                         Properties.Resources.ValidateErrMsgCreateXorDelete,
                         ItemStrings.CreateItem,
                         ItemStrings.DeleteId);
+                }
+                else if (listAllPresent && sqlQueryPresent)
+                {
+                    result = string.Format(
+                        Properties.Resources.ValidateErrMsgListAllXorSqlQuery,
+                        ItemStrings.ListAll,
+                        ItemStrings.SqlQuery);
                 }
 
                 return result;
@@ -155,6 +209,10 @@ namespace CosmosConsoleClient
         /// <exception cref="NotImplementedException"/>
         private static async Task<bool> ExecuteCommandAsync(
             bool initAll,
+            bool listAll,
+            long? startTime,
+            long? stopTime,
+            string sqlQuery,
             string databaseId,
             string containerId,
             string partitionPath,
@@ -177,6 +235,7 @@ namespace CosmosConsoleClient
             using (var client = new CosmosClient(endpointUri, primaryKey, new CosmosClientOptions() { ApplicationName = AppStrings.AppName }))
             {
                 Container container;
+                bool makeQuery = listAll || !string.IsNullOrWhiteSpace(sqlQuery);
 
                 if (initAll)
                 {
@@ -204,9 +263,70 @@ namespace CosmosConsoleClient
                     statusCode = response.StatusCode;
                     requestCharge = response.RequestCharge;
                 }
+                else if (makeQuery)
+                {
+                    // Initializers for workload that follows.
+                    // Separating this logic allows for and item to be created/deleted while
+                    // also requesting the new list of items after this operation.
+                    requestCharge = 0;
+                    statusCode = HttpStatusCode.OK;
+                    result = (statusCode == HttpStatusCode.OK);
+                }
                 else
                 {
                     throw new NotImplementedException();
+                }
+
+                if (makeQuery && result)
+                {
+                    string query = string.Empty;
+
+                    if (listAll)
+                    {
+                        // The "_ts" value is the time in seconds since the last epoch an item was last modified.
+                        // The current UNIX epoch is 1970-1-1. This property will be used to determine files that
+                        // have been created or modified between the start and stop time (inclusive).
+                        startTime ??= DateTimeOffset.MinValue.ToUnixTimeSeconds();
+                        stopTime ??= DateTimeOffset.MaxValue.ToUnixTimeSeconds();
+                        query = $"SELECT * FROM c where c._ts <= { stopTime } AND c._ts >= { startTime }";
+                    }
+                    else
+                    {
+                        query = sqlQuery;
+                    }
+
+                    var items = new List<IDictionary<string, object>>();
+                    using var itemIterator = container.GetItemQueryIterator<IDictionary<string, object>>(query);
+
+                    // Iterate through every item in the container and print the collection to console.
+                    while (itemIterator.HasMoreResults)
+                    {
+                        var itemsResponse = await itemIterator.ReadNextAsync();
+
+                        // Sum up all charges which will be reported back in standard output.
+                        requestCharge += itemsResponse.RequestCharge;
+
+                        // Only apply the latest status code if the result does not indicate a prior failure.
+                        if (result)
+                        {
+                            statusCode = itemsResponse.StatusCode;
+                            result = (statusCode == HttpStatusCode.OK);
+                        }
+
+                        foreach (var item in itemsResponse)
+                        {
+                            // Remove all metadata injected by Cosmos DB Document
+                            // This metadata is part of Miscrosoft.Azure.Documents "Resource" class
+                            item.Remove("_rid");
+                            item.Remove("_self");
+                            item.Remove("_etag");
+                            item.Remove("_attachments");
+                            item.Remove("_ts");
+                            items.Add(item);
+                        }
+                    }
+
+                    Console.WriteLine($"Items ({ items.Count }): { JsonConvert.SerializeObject(items) }");
                 }
             }
 
