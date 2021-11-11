@@ -210,6 +210,8 @@ namespace CosmosConsoleClient
                 }
             }
 
+            Console.WriteLine(Properties.Resources.LogMsgRequestCharge, requestCharge);
+
             if (result)
             {
                 Console.WriteLine(Properties.Resources.LogMsgSuccess, statusCode);
@@ -218,8 +220,6 @@ namespace CosmosConsoleClient
             {
                 Console.WriteLine(Properties.Resources.LogMsgError, statusCode);
             }
-
-            Console.WriteLine(Properties.Resources.LogMsgRequestCharge, requestCharge);
 
             return result;
         }
