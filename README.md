@@ -13,7 +13,7 @@ A basic command line utility for interacting with an instance of Microsoft's
 ## Setup
 
 To utilize this application, the runtime (or SDK for compilation) of
-`.NET Core v3.1` must be installed. The runtime installer is available here:
+`.NET v6.0` must be installed. The runtime installer is available here:
 [.NET Installers](https://dotnet.microsoft.com/download/visual-studio-sdks)
 
 To initialize and build the release, run the following:
@@ -36,7 +36,7 @@ settings, but can be modified as needed to connect to any Cosmos DB instance.
 To run the command and retrieve the top level `help` information, run:
 
 ```cmd
-cd bin\Release\netcoreapp3.1
+cd bin\Release\net6.0
 dotnet .\CosmosConsoleClient.dll --help
 ```
 
